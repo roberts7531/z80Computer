@@ -1,0 +1,72 @@
+0001   0000             seldsk:		.equ	0E61Bh	;pass disk no. in c
+0002   0000             setdma:		.equ	0E624h	;pass address in bc
+0003   0000             settrk:		.equ	0E61Eh	;pass track in reg C
+0004   0000             setsec:		.equ	0E621h	;pass sector in reg c
+0005   0000             write:		.equ	0EA77h	;write one CP/M sector to disk
+0006   0000             
+0007   5000             .org	5000h
+0008   5000 D3 00       		out (00h),a
+0009   5002 31 0B 51    		ld	sp,format_stack
+0010   5005 3E 00       		ld	a,00h	;starting disk
+0011   5007 32 66 50    		ld	(disk),a
+0012   500A 4F          disk_loop:	ld	c,a	;CP/M disk a
+0013   500B CD 1B E6    		call 	seldsk
+0014   500E 3E 02       		ld	a,2	;starting track (offset = 2)
+0015   5010 32 68 50    		ld	(track),a
+0016   5013 3E 00       track_loop:	ld	a,0	;starting sector
+0017   5015 32 67 50    		ld	(sector),a
+0018   5018 21 6B 50    		ld	hl,directory_sector 	;address of data to write
+0019   501B 22 69 50    		ld	(address),hl
+0020   501E 3A 68 50    		ld	a,(track)
+0021   5021 4F          		ld	c,a	;CP/M track
+0022   5022 CD 1E E6    		call	settrk
+0023   5025 3A 67 50    sector_loop:	ld	a,(sector)
+0024   5028 4F          		ld	c,a	;CP/M sector
+0025   5029 CD 21 E6    		call	setsec
+0026   502C ED 4B 69 50 		ld	bc,(address)	;memory location
+0027   5030 CD 24 E6    		call	setdma
+0028   5033 CD 77 EA    		call	write
+0029   5036 3A 67 50    		ld	a,(sector)
+0030   5039 FE 1A       		cp	26
+0031   503B CA 45 50    		jp	z,next_track
+0032   503E 3C          		inc	a
+0033   503F 32 67 50    		ld	(sector),a
+0034   5042 C3 25 50    		jp	sector_loop
+0035   5045 3A 68 50    next_track:	ld	a,(track)
+0036   5048 FE 4D       		cp	77
+0037   504A CA 54 50    		jp	z,next_disk
+0038   504D 3C          		inc	a
+0039   504E 32 68 50    		ld	(track),a
+0040   5051 C3 13 50    		jp	track_loop
+0041   5054 3A 66 50    next_disk:	ld	a,(disk)
+0042   5057 3C          		inc	a
+0043   5058 FE 04       		cp	4
+0044   505A CA 63 50    		jp	z,done
+0045   505D 32 66 50    		ld	(disk),a
+0046   5060 C3 0A 50    		jp	disk_loop
+0047   5063 C3 00 E6    done:	jp	0e600H
+0048   5066 00          disk:	.db	00h
+0049   5067 00          sector:	.db	00h
+0050   5068 00          track:	.db	00h
+0051   5069 00 00       address:	.dw	0000h
+0052   506B             directory_sector:
+0053   506B E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h   	;sector filled with 0E5h
+0053   5071 E5E5E5E5E5E5E5E5E5E5
+0054   507B E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h
+0054   5081 E5E5E5E5E5E5E5E5E5E5
+0055   508B E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h
+0055   5091 E5E5E5E5E5E5E5E5E5E5
+0056   509B E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h
+0056   50A1 E5E5E5E5E5E5E5E5E5E5
+0057   50AB E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h   	;sector filled with 0E5h
+0057   50B1 E5E5E5E5E5E5E5E5E5E5
+0058   50BB E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h
+0058   50C1 E5E5E5E5E5E5E5E5E5E5
+0059   50CB E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h
+0059   50D1 E5E5E5E5E5E5E5E5E5E5
+0060   50DB E5E5E5E5E5E5.db   	0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h,0e5h, 0e5h, 0e5h,0e5h
+0060   50E1 E5E5E5E5E5E5E5E5E5E5
+0061   50EB             .ds	32	;stack space
+0062   510B             format_stack:
+0063   510B             .end
+tasm: Number of errors = 0

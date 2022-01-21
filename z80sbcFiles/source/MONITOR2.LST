@@ -1,0 +1,263 @@
+0001   0000             ;==================================================================================
+0002   0000             ; Contents of this file are copyright Grant Searle
+0003   0000             ; HEX routines from Joel Owens.
+0004   0000             ;
+0005   0000             ; You have permission to use this for NON COMMERCIAL USE ONLY
+0006   0000             ; If you wish to use it elsewhere, please include an acknowledgement to myself.
+0007   0000             ;
+0008   0000             ; http://searle.hostei.com/grant/index.html
+0009   0000             ;
+0010   0000             ; eMail: home.micros01@btinternet.com
+0011   0000             ;
+0012   0000             ; If the above don't work, please perform an Internet search to see if I have
+0013   0000             ; updated the web page hosting service.
+0014   0000             ;
+0015   0000             ;==================================================================================
+0016   0000             
+0017   0000             ;------------------------------------------------------------------------------
+0018   0000             ;
+0019   0000             ; Z80 Monitor Rom
+0020   0000             ;
+0021   0000             ;------------------------------------------------------------------------------
+0022   0000             ; General Equates
+0023   0000             ;------------------------------------------------------------------------------
+0024   0000             
+0025   0000             CR		.EQU	0DH
+0026   0000             LF		.EQU	0AH
+0027   0000             ESC		.EQU	1BH
+0028   0000             CTRLC		.EQU	03H
+0029   0000             CLS		.EQU	0CH
+0030   0000             
+0031   0000             ; CF registers
+0032   0000             CF_DATA		.EQU	$10
+0033   0000             
+0034   0000             CF_ERROR	.EQU	$11
+0035   0000             CF_SECCOUNT	.EQU	$12
+0036   0000             CF_SECTOR	.EQU	$13
+0037   0000             CF_CYL_LOW	.EQU	$14
+0038   0000             CF_CYL_HI	.EQU	$15
+0039   0000             CF_HEAD		.EQU	$16
+0040   0000             CF_STATUS	.EQU	$17
+0041   0000             CF_COMMAND	.EQU	$17
+0042   0000             CF_LBA0		.EQU	$13
+0043   0000             CF_LBA1		.EQU	$14
+0044   0000             CF_LBA2		.EQU	$15
+0045   0000             CF_LBA3		.EQU	$16
+0046   0000             
+0047   0000             ;CF Features
+0048   0000             
+0049   0000             C
+0050   0000             ;CF Commands
+0051   0000             CF_READ_SEC	.EQU	020H
+0052   0000             CF_WRITE_SEC	.EQU	030H
+0053   0000             
+0054   0000             
+0055   0000             
+0056   0000             loadAddr	.EQU	0D000h	; CP/M load address
+0057   0000             numSecs		.EQU	24	; Number of 512 sectors to be loaded
+0058   0000             
+0059   0000             
+0060   0000             ;BASIC cold and warm entry points
+0061   0000             BASCLD		.EQU	$2000
+0062   0000             BASWRM		.EQU	$2003
+0063   0000             
+0064   0000             SER_BUFSIZE	.EQU	40H
+0065   0000             SER_FULLSIZE	.EQU	30H
+0066   0000             SER_EMPTYSIZE	.EQU	5
+0067   0000             
+0068   0000             RTS_HIGH	.EQU	0E8H
+0069   0000             RTS_LOW		.EQU	0EAH
+0070   0000             
+0071   0000             
+0072   0000             CON		.EQU	$01
+0073   0000             STATUSIN		.EQU	$00
+0074   0000             STATUSOUT		.EQU	$02
+0075   0000             
+0076   9000             		.ORG	$9000
+0077   9000             serBuf		.ds	SER_BUFSIZE
+0078   9040             serInPtr	.ds	2
+0079   9042             serRdPtr	.ds	2
+0080   9044             serBufUsed	.ds	1
+0081   9045             
+0082   9045             
+0083   9045             secNo		.ds	1
+0084   9046             dmaAddr		.ds	2
+0085   9048             
+0086   9048             stackSpace	.ds	32
+0087   9068             STACK   	.EQU    $	; Stack top
+0088   9068             
+0089   9068             
+0090   9068             ;------------------------------------------------------------------------------
+0091   9068             ;                         START OF MONITOR ROM
+0092   9068             ;------------------------------------------------------------------------------
+0093   9068             
+0094   0000             MON		.ORG	$0000		; MONITOR ROM RESET VECTOR
+0095   0000             ;------------------------------------------------------------------------------
+0096   0000             ; Reset
+0097   0000             ;------------------------------------------------------------------------------
+0098   0000 F3          RST00		DI			;Disable INTerrupts
+0099   0001 C3 CD 00    		jp INIT
+0100   0004             
+0101   0004             
+0102   0008             		.ORG 0008H
+0103   0008 C3 91 00    		jp conout
+0104   0010             		.ORG 0010H
+0105   0010 C3 6E 00    		jp conin
+0106   0018             		.ORG 0018H
+0107   0018 C3 A4 00    		jp CKINCHAR
+0108   0038             		.ORG 0038H
+0109   0038 C3 3B 00    		jp serialInt
+0110   003B             		
+0111   003B             
+0112   003B             ;------------------------------------------------------------------------------
+0113   003B             ; Serial interrupt handlers
+0114   003B             ; Same interrupt called if either of the inputs receives a character
+0115   003B             ; so need to check the status of each SIO input.
+0116   003B             ;------------------------------------------------------------------------------
+0117   003B F5          serialInt:	PUSH     AF
+0118   003C 3E 01                       ld a,1
+0119   003E D3 02                       out ($02),a
+0120   0040 E5                          PUSH     HL
+0121   0041             
+0122   0041 DB 00       intl:           IN A,($00)
+0123   0043 E6 02                       AND $2
+0124   0045 CA 41 00                    JP Z,intl
+0125   0048             		
+0126   0048             
+0127   0048             serialIntA:
+0128   0048 2A 40 90    		LD	HL,(serInPtr)
+0129   004B 23          		INC	HL
+0130   004C 7D          		LD	A,L
+0131   004D FE 40       		CP	(serBuf+SER_BUFSIZE) & $FF
+0132   004F 20 03       		JR	NZ, notAWrap
+0133   0051 21 00 90    		LD	HL,serBuf
+0134   0054             notAWrap:
+0135   0054 22 40 90    		LD	(serInPtr),HL
+0136   0057 DB 01       		IN	A,($01)
+0137   0059 77          		LD	(HL),A
+0138   005A             
+0139   005A 3A 44 90    		LD	A,(serBufUsed)
+0140   005D 3C          		INC	A
+0141   005E 32 44 90    		LD	(serBufUsed),A
+0142   0061 FE 30       		CP	SER_FULLSIZE
+0143   0063 38 00       		JR	C,rtsA0
+0144   0065             	        
+0145   0065             rtsA0:
+0146   0065 E1          		POP	HL
+0147   0066 3E 00       		ld a,0
+0148   0068 D3 02                       out ($02),a
+0149   006A F1          		POP	AF
+0150   006B FB          		EI
+0151   006C ED 4D       		RETI
+0152   006E             
+0153   006E             ;------------------------------------------------------------------------------
+0154   006E             ; Console input routine
+0155   006E             ; Use the "primaryIO" flag to determine which input port to monitor.
+0156   006E             ;------------------------------------------------------------------------------
+0157   006E             
+0158   006E             
+0159   006E             conin:
+0160   006E E5          		PUSH	HL
+0161   006F             		
+0162   006F             coninA:
+0163   006F             
+0164   006F             waitForCharA:
+0165   006F 3A 44 90    		LD	A,(serBufUsed)
+0166   0072 FE 00       		CP	$00
+0167   0074 28 F9       		JR	Z, waitForCharA
+0168   0076 2A 42 90    		LD	HL,(serRdPtr)
+0169   0079 23          		INC	HL
+0170   007A 7D          		LD	A,L
+0171   007B FE 40       		CP	(serBuf+SER_BUFSIZE) & $FF
+0172   007D 20 03       		JR	NZ, notRdWrapA
+0173   007F 21 00 90    		LD	HL,serBuf
+0174   0082             notRdWrapA:
+0175   0082 F3          		DI
+0176   0083 22 42 90    		LD	(serRdPtr),HL
+0177   0086             
+0178   0086 3A 44 90    		LD	A,(serBufUsed)
+0179   0089 3D          		DEC	A
+0180   008A 32 44 90    		LD	(serBufUsed),A
+0181   008D             
+0182   008D             		
+0183   008D             rtsA1:
+0184   008D 7E          		LD	A,(HL)
+0185   008E FB          		EI
+0186   008F             
+0187   008F E1          		POP	HL
+0188   0090             
+0189   0090 C9          		RET	; Char ready in 
+0190   0091             ;------------------------------------------------------------------------------
+0191   0091             ; Console output routine
+0192   0091             ; Use the "primaryIO" flag to determine which output port to send a character.
+0193   0091             ;------------------------------------------------------------------------------
+0194   0091 F5          conout:		PUSH AF
+0195   0092 DB 00       TXALOOP1:       IN A,($00)
+0196   0094 E6 04                       AND $4
+0197   0096 CA 92 00                    JP Z,TXALOOP1
+0198   0099 DB 00       TXALOOP:        IN A,($00)
+0199   009B E6 01                       AND $1
+0200   009D C2 99 00                    JP NZ,TXALOOP
+0201   00A0 F1                          POP AF; Retrieve character
+0202   00A1 D3 01                       OUT      ($01),A         ; Output the character
+0203   00A3 C9                          RET
+0204   00A4             
+0205   00A4             
+0206   00A4             ;------------------------------------------------------------------------------
+0207   00A4             ; Check if there is a character in the input buffer
+0208   00A4             ; Use the "primaryIO" flag to determine which port to check.
+0209   00A4             ;------------------------------------------------------------------------------
+0210   00A4             CKINCHAR
+0211   00A4 3A 44 90    		LD	A,(serBufUsed)
+0212   00A7 FE 00       		CP	$0
+0213   00A9 C9          		RET
+0214   00AA             
+0215   00AA             
+0216   00AA             ;------------------------------------------------------------------------------
+0217   00AA             ; Filtered Character I/O
+0218   00AA             ;------------------------------------------------------------------------------
+0219   00AA             
+0220   00AA D7          RDCHR		RST	10H
+0221   00AB FE 0A       		CP	LF
+0222   00AD 28 FB       		JR	Z,RDCHR		; Ignore LF
+0223   00AF FE 1B       		CP	ESC
+0224   00B1 20 02       		JR	NZ,RDCHR1
+0225   00B3 3E 03       		LD	A,CTRLC		; Change ESC to CTRL-C
+0226   00B5 C9          RDCHR1		RET
+0227   00B6             
+0228   00B6 FE 0D       WRCHR		CP	CR
+0229   00B8 28 0A       		JR	Z,WRCRLF	; When CR, write CRLF
+0230   00BA FE 0C       		CP	CLS
+0231   00BC 28 04       		JR	Z,WR		; Allow write of "CLS"
+0232   00BE FE 20       		CP	' '		; Don't write out any other control codes
+0233   00C0 38 01       		JR	C,NOWR		; ie. < space
+0234   00C2 CF          WR		RST	08H
+0235   00C3 C9          NOWR		RET
+0236   00C4             
+0237   00C4 3E 0D       WRCRLF		LD	A,CR
+0238   00C6 CF          		RST	08H
+0239   00C7 3E 0A       		LD	A,LF
+0240   00C9 CF          		RST	08H
+0241   00CA 3E 0D       		LD	A,CR
+0242   00CC C9          		RET
+0243   00CD             
+0244   00CD             
+0245   00CD             ;------------------------------------------------------------------------------
+0246   00CD             ; Initialise hardware and start main loop
+0247   00CD             ;------------------------------------------------------------------------------
+0248   00CD 3E 00       INIT		ld a,0
+0249   00CF D3 02       		out ($02),a
+0250   00D1 31 68 90    		LD   SP,STACK		; Set the Stack Pointer
+0251   00D4             
+0252   00D4 21 00 90    		LD	HL,serBuf
+0253   00D7 22 40 90    		LD	(serInPtr),HL
+0254   00DA 22 42 90    		LD	(serRdPtr),HL
+0255   00DD             
+0256   00DD             
+0257   00DD AF          		xor	a			;0 to accumulator
+0258   00DE 32 44 90    		LD	(serBufUsed),A
+0259   00E1             
+0260   00E1 ED 56       		IM	1
+0261   00E3 FB          		EI
+0262   00E4             .END
+tasm: Number of errors = 0

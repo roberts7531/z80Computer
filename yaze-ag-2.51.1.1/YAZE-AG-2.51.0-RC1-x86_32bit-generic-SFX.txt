@@ -1,0 +1,32 @@
+;The comment below contains SFX script commands
+
+Path=C:\yaze-ag-2.51.0-rc1-32Bit\
+SavePath
+Title=YAZE-AG-2.51.0-rc1 (x86_32bit - generic) Installation
+Text
+{
+YAZE-AG - Yet Another Z80 Emulator by AG
+
+
+(release candidate 2.51.0-rc1 / 2020-09-21)
+
+
+Windows binaries (x86_32bit - generic)
+
+
+see for more informations the web page
+
+
+      http://yaze-ag.de/    E-Mail: development (at) yaze-ag.de
+
+
+(Cygwin DLL version 3.1.4, 32Bit)
+
+(mintty.exe version 3.1.4-1, 32Bit)
+}
+Shortcut=D, "bin\mintty.exe --config .\.minttyrc --exec .\yaze_bin.exe", ,"Yet Another Z80 Emulator by AG",YAZE-AG-2.51.0-rc1,
+Shortcut=D, "bin\mintty.exe --config .\.minttyrc --font 'Lucida Console' --fs 10pt --geometry=80x46+200+0 --exec .\yaze_bin.exe", ,"Yet Another Z80 Emulator by AG","YAZE-AG-2.51.0-rc1 80-col, 46-lines, fontsize 10p",
+Shortcut=P, "bin\mintty.exe --config .\.minttyrc --exec .\yaze_bin.exe", YAZE-AG-2.51.0-rc1,"Yet Another Z80 Emulator by AG",YAZE-AG-2.51.0-rc1,
+Shortcut=P, doc_html\index.html, YAZE-AG-2.51.0-rc1,"Documentation of YAZE-AG-2.51.0-rc1" , "Documentation of YAZE-AG-2.51.0-rc1",
+Shortcut=P, "metapad.exe /i bin\.yazerc", YAZE-AG-2.51.0-rc1, "Edit startup file .yazerc", "Edit startup file .yazerc",
+Shortcut=P, "metapad.exe /i bin\yaze.ktt", YAZE-AG-2.51.0-rc1, "Edit yaze.ktt", "Edit yaze.ktt",
