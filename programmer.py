@@ -1,3 +1,4 @@
+##TODO add Read feature and command line args
 import serial
 from intelhex import IntelHex
 ser = serial.Serial('/dev/cu.usbserial-AL016U20', 115200)

@@ -1,7 +1,0 @@
-WordMaster 1.20 for CP/M-80 
-Released in 1982 by MicroPro
-For CP/M-80
-
-WordMaster is a low-cost but powerful text editor for CP/M-80. This product pre-dated WordStar, but was only designed as a text editor, not a full blown word processor. 
-
-Archive includes a file set for generic CP/M-80 systems. 
